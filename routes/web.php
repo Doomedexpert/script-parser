@@ -17,5 +17,4 @@ use App\Http\Controllers\ControllerParser;
 Route::get('/', function () {
     return view('page/main_title');
 });
-// Route::get('/', [ControllerParser::class, 'redirect']);
 Route::post('parser_load',[ControllerParser::class, 'parserCheck']);

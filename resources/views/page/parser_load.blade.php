@@ -2,7 +2,6 @@
 @section('title', 'Обработка запроса')
 
 @section('content')
-<main>
-       
+<main>    
 </main>  
 @endsection 

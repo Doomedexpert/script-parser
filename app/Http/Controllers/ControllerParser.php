@@ -1,10 +1,6 @@
 <?php
-
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Routing\Controller as BaseController;
 use SplFileInfo;
 
 class ControllerParser
@@ -31,12 +27,11 @@ class ControllerParser
    
     public static function parserCheck() {
        
-        $info = new SplFileInfo($_FILES['logFile']['name']);
-        // Проверка на расширение файла
+        $fileInfo = new SplFileInfo($_FILES['logFile']['name']);
         if (empty($_FILES['logFile']['name']) ) {
             return redirect('/')->with('error', 'Упс. Файл отсутствует.');
         }
-        if ($info->getExtension() != 'txt' ) {
+        if ($fileInfo->getExtension() != 'txt' ) {
             return redirect('/')->with('error', 'Упс. Файл не является txt.');
         }
        return self::parserGo();
@@ -45,7 +40,7 @@ class ControllerParser
  
     public static function parserGo() {
            
-        $jsonLog = array(
+        $parsInfo = array(
             'views' => '',
             'urls' => '',
             'traffic' => '',
@@ -53,38 +48,37 @@ class ControllerParser
             array_fill_keys(self::CRAWLERS, 0),
             'statusCodes' =>
             array_fill_keys(self::CODES, 0),
-            );
+        );
+
         $logFile = file_get_contents($_FILES['logFile']['tmp_name']);
-        // Получили Массив
-        $logFileArray = str_replace("\r\n", " ", $logFile);
-        $logFileArray = explode(' ',  $logFileArray);
-        // Всего
-        preg_match_all("#[0-9]{1,2}[/][A-z]{3,6}[/]20[0-9]{2}#", implode($logFileArray), $matches, PREG_OFFSET_CAPTURE);
-        $jsonLog['views'] = count($matches[0]);
-        // Уникальные урлы
-        preg_match('$(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?$', implode($logFileArray), $matches, PREG_OFFSET_CAPTURE); 
+        $fileInfo =  explode(' ', str_replace("\r\n", " ", $logFile));
+        $fileInfoForTraffic = explode('\r\n', $logFile);
+
+        preg_match_all("#[0-9]{1,2}[/][A-z]{3,6}[/]20[0-9]{2}#", implode($fileInfo), $matches, PREG_OFFSET_CAPTURE);
+        $parsInfo['views'] = count($matches[0]);
+
+        preg_match('$(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?$', implode($fileInfo), $matches, PREG_OFFSET_CAPTURE); 
         foreach ($matches as $matchesItem) {
             $unicUrl[] = $matchesItem[0];
         }
-        $jsonLog['urls']=count(array_unique($unicUrl));
-        // Объем трафика
-        $logFileArray1 = explode('\r\n', $logFile);
-        preg_match_all("#[ ][0-5]{3}[ ][0-9]{1,10}#",  $logFileArray1[0], $matches);
+        $parsInfo['urls']=count(array_unique($unicUrl));
+
+        preg_match_all("#[ ][0-5]{3}[ ][0-9]{1,10}#",  $fileInfoForTraffic[0], $matches);
         foreach ($matches[0] as $matchesItem) {
-            $js[] = preg_replace('#[ ][0-5]{3}[ ]#', "",  $matchesItem);
+            $trafics[] = preg_replace('#[ ][0-5]{3}[ ]#', "",  $matchesItem);
         }
-        $jsonLog['traffic']=array_sum($js);
-        //Подсчет кодов
+        $parsInfo['traffic']=array_sum($trafics);
+
         foreach (self::CODES as $codesItem) {
-            $jsonLog['statusCodes'][$codesItem] = count(array_keys($logFileArray, $codesItem));
+            $parsInfo['statusCodes'][$codesItem] = count(array_keys($fileInfo, $codesItem));
         }
-        //Подсчет поисковиков
+
         foreach (self::CRAWLERS as $crawlersItem) {
-            $a[$crawlersItem] = preg_match_all("/$crawlersItem/", implode($logFileArray), $matches, PREG_OFFSET_CAPTURE);
-            $jsonLog['crawlers'][$crawlersItem] = $a[$crawlersItem];      
+            $crawlers[$crawlersItem] = preg_match_all("/$crawlersItem/", implode($fileInfo), $matches, PREG_OFFSET_CAPTURE);
+            $parsInfo['crawlers'][$crawlersItem] = $crawlers[$crawlersItem];      
         }
         
-        return redirect('/')->with('json', json_encode($jsonLog));
+        return redirect('/')->with('json', json_encode($parsInfo));
 
     }
 }
